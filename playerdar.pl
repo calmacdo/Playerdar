@@ -6,23 +6,20 @@
 use strict;
 use WWW::Mechanize;
 use JSON -support_by_pp;
-use XML::Simple;
-use Data::Dumper;
 use LWP::Simple;
 use Net::LastFM;
-use 5.010;
+use Proc::Simple;
 
 our @listened = ('Empty');
+our @playlist = ();
 
-my $APIk = "798a758e559cd1e31620e210916717b1";
-my $APIs = "7d51c832818ae8db3d7f42f2fbb68cc6";
+our $APIk = "798a758e559cd1e31620e210916717b1";
+our $APIs = "7d51c832818ae8db3d7f42f2fbb68cc6";
 
 print "Enter Artist: ";
 my $artist = <>;
-#print "\n";
 print "Enter Track: ";
 my $track = <>;
-#print "\n";
 
 my $Nart = $artist;
 my $Ntrk = $track;
@@ -46,21 +43,9 @@ print "Player sid: $sid \n";
 
 if ($sid ne "Fail"){
   updatelist($Ntrk);
-  play($sid);
+  player($sid, $Nart, $Ntrk);
 }
  
-while ($sid ne "Fail"){
-
-  ($artist , $track , $sid) = &fetch_sim($APIk, $APIs , $Nart , $Ntrk);
-
-  print "Similar Track: $artist - $track:$sid \n";
-
-  if ($sid ne "Fail"){
-    updatelist($track);
-    play($sid);
-  }
-}
-
 sub fetch_id {
   my $returnid = '';
   my ($json_url, $request) = @_;
@@ -81,19 +66,23 @@ sub fetch_id {
           my $score = 0;
 	  my $id = "Fail";
 	  my $testURL = '';
-	  my $check = '';
-	  my $listen = '';
+	  my $intrack = '';
+	  my $outtrack = '';
 
 	  foreach my $result(@{$json_text->{results}}){
 	    $testURL = "http://localhost:60210/sid/$result->{sid}";
-	    $check = CheckUrl($testURL);
-	    $listen = CheckPlayed($result->{track});
 	    
-	    #print "$check - $result->{score}  - $score \n";
+	    $intrack = $json_text->{query}->{track};
+	    $outtrack = $result->{track};
 
-	    if (($check eq "Ok") && ($result->{score} > $score ) && ($listen eq "Ok")) {
-	      $score = $result->{score};
-	      $id = $result->{sid};
+	    $intrack =~ tr/[A-Z]/[a-z]/;
+	    $outtrack =~ tr/[A-Z]/[a-z]/;
+
+	    if (($result->{score} > $score ) && ($intrack eq $outtrack)) {
+	      if ((CheckUrl($testURL) eq "Ok") && (CheckPlayed($result->{track}) eq "Ok")){
+		$score = $result->{score};
+		$id = $result->{sid};
+	      }
 	    }
           }
 	  print "\n";
@@ -112,17 +101,77 @@ sub fetch_id {
 
 }
 
-sub play {
+sub player {
 
-  my ($id) = @_;
+  my ($id, $singer, $song) = @_;
+  my $myproc = Proc::Simple->new();
   my $cmd = "/usr/local/bin/mplayer http://localhost:60210/sid/$id";
+  my $tmpSing = "";
+  my $tmpSong = "";
+  my $tmp = "";
+  
+  push(@playlist, $id);
 
-  system $cmd;
+  my $next = shift @playlist;
+  shift @playlist;
+
+  $myproc->start($cmd);
+
+  my $pid = $myproc->pid;
+
+  print "\nProcess: $pid\n";
+  
+  my $exists = kill 0, $pid;
+
+  while ($next ne "Fail") {
+
+    while ($exists) {
+
+      if (@playlist == 10) {
+	$exists = kill 0, $pid;
+      } else {
+
+	$tmpSing = $singer;
+	$tmpSong = $song;
+
+	($singer , $song , $id) = &fetch_sim($tmpSing , $tmpSong);
+	updatelist($song);
+	push(@playlist,$id);
+
+	$exists = kill 0, $pid;
+
+      }
+    }
+    
+    $next = "";
+
+    foreach $tmp (@playlist){
+    
+      #print "\n$next\n";
+
+      if ($next eq "") {
+	$next = $tmp;
+      }
+
+    }
+
+    $myproc->kill();
+    shift @playlist;
+    print "Next Track sid: $singer - $song: $next \n";
+    $cmd = "/usr/local/bin/mplayer http://localhost:60210/sid/$next";
+    $myproc->start($cmd);
+    $pid = $myproc->pid;
+    $exists = kill 0, $pid;
+
+  }
+
+  print "Done";
+
 }
 
 sub fetch_sim {
   
-  my ($apiK, $apiS, $art, $trk) = @_;
+  my ($art, $trk) = @_;
   my $id = "Fail";
   my $testArt = '';
   my $testTrk = '';
@@ -131,8 +180,8 @@ sub fetch_sim {
   #my $match = 0;
 
   my $lastfm = Net::LastFM->new(
-    api_key    => $apiK,
-    api_secret => $apiS,
+    api_key    => $APIk,
+    api_secret => $APIs,
   );
   my $data = $lastfm->request_signed(
       method => 'track.getSimilar',
@@ -192,15 +241,27 @@ sub CheckUrl {
 sub CheckPlayed {
 
   my ($Cid) = @_;
-  my $response = '';
+  my $response = "Ok";
   
-  if ( $Cid ~~ @listened ) {
+  foreach my $try (@listened) {
+  
+  $try =~ tr/[A-Z]/[a-z]/;
+  $Cid =~ tr/[A-Z]/[a-z]/;
+
+  if ( $Cid eq $try ) {
     
     $response = "Fail";
 
   } else {
 
-    $response = "Ok";
+    if ($response ne "Fail") {
+
+      $response = "Ok";
+    
+    }
+    }
+    
+    print "$Cid - $try - $response \n";
 
   }
 
@@ -222,8 +283,6 @@ sub updatelist {
     push(@listened,$trklist);
 
   }
-  print "@listened \n";
+  #print "@listened \n";
 
 }
-
-

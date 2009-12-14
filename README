@@ -1,0 +1,26 @@
+A playlist generator for playdar. The user enters an artist and a track they wish to listen to and the script generates a playlist using the Last.fm API to get similar 
+tracks to the one being resolved initially. This works best with a large collection of music or a good selection of resolvers.
+
+REQUIREMENTS
+============
+
+To run this script the following dependancies are required:
+
+perl
+mplayer
+
+In addition to perl the following modules are utilised:
+
+WWW::Mechanize
+JSON
+JSON::XS
+LWP::Simple
+Net::LastFM
+Proc::Simple
+
+RUN
+===
+
+To run this script use the following command:
+
+perl playerdar.pl
