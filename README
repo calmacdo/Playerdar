@@ -1,5 +1,4 @@
-A playlist generator for playdar. The user enters an artist and a track they wish to listen to and the script generates a playlist using the Last.fm API to get similar 
-tracks to the one being resolved initially. This works best with a large collection of music or a good selection of resolvers.
+A playlist generator for playdar. The user enters an artist and a track they wish to listen to and the script generates a playlist using the Last.fm API to get similar tracks to the one being resolved initially.
 
 REQUIREMENTS
 ============

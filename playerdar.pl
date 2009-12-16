@@ -1,17 +1,36 @@
 #!/usr/bin/perl -w
 # $Rev: 1 $
-# $Author: calmacdo $
-# $Date: 2009-12-08 23:09:47 -0700 (Sat, 23 May 2009) $
+# $Author: calmacdo
+# $Date: 2009-12-08 23:09:47 -0700 (Sat, 23 May 2009)
+
+#    Copyright 2009 Calum Macdonald
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#	http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
  
 use strict;
 use WWW::Mechanize;
 use JSON -support_by_pp;
+use Audio::Play::MPlayer;
+use Data::Dumper;
 use LWP::Simple;
 use Net::LastFM;
 use Proc::Simple;
 
 our @listened = ('Empty');
 our @playlist = ();
+our @si = ();
+our @so = ();
 
 our $APIk = "798a758e559cd1e31620e210916717b1";
 our $APIs = "7d51c832818ae8db3d7f42f2fbb68cc6";
@@ -46,13 +65,25 @@ if ($sid ne "Fail"){
   player($sid, $Nart, $Ntrk);
 }
  
+#while ($sid ne "Fail"){
+
+  #($artist , $track , $sid) = &fetch_sim($APIk, $APIs , $Nart , $Ntrk);
+
+  #print "Similar Track: $artist - $track:$sid \n";
+
+  #if ($sid ne "Fail"){
+    #updatelist($track);
+    #player($sid);
+  #}
+#}
+
 sub fetch_id {
   my $returnid = '';
   my ($json_url, $request) = @_;
   my $browser = WWW::Mechanize->new();
   eval{
     # download the json page:
-    print "Getting json $json_url\n";
+    #print "Getting json $json_url\n";
     $browser->get( $json_url );
     my $content = $browser->content();
     my $json = new JSON;
@@ -85,7 +116,7 @@ sub fetch_id {
 	      }
 	    }
           }
-	  print "\n";
+	  #print "\n";
 	  $returnid = $id;
        } else {
           $returnid = "Fail";
@@ -105,21 +136,25 @@ sub player {
 
   my ($id, $singer, $song) = @_;
   my $myproc = Proc::Simple->new();
-  my $cmd = "/usr/local/bin/mplayer http://localhost:60210/sid/$id";
+  my $cmd = "/usr/bin/mplayer http://localhost:60210/sid/$id";
   my $tmpSing = "";
   my $tmpSong = "";
   my $tmp = "";
   
   push(@playlist, $id);
+  push(@si,$singer);
+  push(@so,$song);
 
   my $next = shift @playlist;
   shift @playlist;
+  shift @si;
+  shift @so;
 
   $myproc->start($cmd);
 
   my $pid = $myproc->pid;
 
-  print "\nProcess: $pid\n";
+  #print "\nProcess: $pid\n";
   
   my $exists = kill 0, $pid;
 
@@ -137,6 +172,8 @@ sub player {
 	($singer , $song , $id) = &fetch_sim($tmpSing , $tmpSong);
 	updatelist($song);
 	push(@playlist,$id);
+	push(@si,$singer);
+	push(@so,$song);
 
 	$exists = kill 0, $pid;
 
@@ -146,8 +183,6 @@ sub player {
     $next = "";
 
     foreach $tmp (@playlist){
-    
-      #print "\n$next\n";
 
       if ($next eq "") {
 	$next = $tmp;
@@ -155,10 +190,32 @@ sub player {
 
     }
 
+    $tmpSing = "";
+
+    foreach $tmp (@si){
+
+      if ($tmpSing eq "") {
+	$tmpSing = $tmp;
+      }
+
+    }
+
+    $tmpSong = "";
+
+    foreach $tmp (@so){
+
+      if ($tmpSong eq "") {
+	$tmpSong = $tmp;
+      }
+
+    }
+
     $myproc->kill();
     shift @playlist;
-    print "Next Track sid: $singer - $song: $next \n";
-    $cmd = "/usr/local/bin/mplayer http://localhost:60210/sid/$next";
+    shift @so;
+    shift @si;
+    print "\n\nNext Track: $tmpSing - $tmpSong\n\n";
+    $cmd = "/usr/bin/mplayer http://localhost:60210/sid/$next";
     $myproc->start($cmd);
     $pid = $myproc->pid;
     $exists = kill 0, $pid;
@@ -167,6 +224,29 @@ sub player {
 
   print "Done";
 
+}
+
+sub play {
+
+  my ($id) = @_;
+  my $cmd = "http://localhost:60210/sid/$id";
+  
+  my $player = Audio::Play::MPlayer->new;
+  $player->load( $cmd );
+  
+  #print Dumper($player);
+  #write loop to keep playlist at 10 then play first in playlist
+    while ($player->state == 2){
+      #sleep 1;
+      $player->poll( 1 )
+    }
+
+  $player->load( "http://localhost:60210/sid/$playlist[0]" );
+  shift(@playlist);
+  
+
+#print $player->state;
+#system $cmd;
 }
 
 sub fetch_sim {
@@ -224,7 +304,7 @@ sub CheckUrl {
   my $response = '';
   my $check = head($url);
 
-  print ".";
+  #print ".";
   
   #print Dumper($check);
   
@@ -261,7 +341,7 @@ sub CheckPlayed {
     }
     }
     
-    print "$Cid - $try - $response \n";
+    #print "$Cid - $try - $response \n";
 
   }
 
@@ -286,3 +366,5 @@ sub updatelist {
   #print "@listened \n";
 
 }
+
+
