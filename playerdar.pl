@@ -146,8 +146,10 @@ sub player {
   
   my $exists = kill 0, $pid;
 
-  $cmd = '/usr/bin/kdialog --title "Playerdar Info" --passivepopup "Now Playing: '. $singer . ' - ' . $song . '"';
-  system $cmd;
+  if (-e "/usr/bin/kdialog") {
+    $cmd = '/usr/bin/kdialog --title "Playerdar Info" --passivepopup "Now Playing: '. $singer . ' - ' . $song . '"';
+    system $cmd;
+  }
 
   while ($next ne "Fail") {
 
