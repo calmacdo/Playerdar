@@ -64,18 +64,6 @@ if ($sid ne "Fail"){
   updatelist($Ntrk);
   player($sid, $Nart, $Ntrk);
 }
- 
-#while ($sid ne "Fail"){
-
-  #($artist , $track , $sid) = &fetch_sim($APIk, $APIs , $Nart , $Ntrk);
-
-  #print "Similar Track: $artist - $track:$sid \n";
-
-  #if ($sid ne "Fail"){
-    #updatelist($track);
-    #player($sid);
-  #}
-#}
 
 sub fetch_id {
   my $returnid = '';
@@ -158,6 +146,9 @@ sub player {
   
   my $exists = kill 0, $pid;
 
+  $cmd = '/usr/bin/kdialog --title "Playerdar Info" --passivepopup "Now Playing: '. $singer . ' - ' . $song . '"';
+  system $cmd;
+
   while ($next ne "Fail") {
 
     while ($exists) {
@@ -219,6 +210,12 @@ sub player {
     $myproc->start($cmd);
     $pid = $myproc->pid;
     $exists = kill 0, $pid;
+
+    if (-e "/usr/bin/kdialog") {
+      $cmd = '/usr/bin/kdialog --title "Playerdar Info" --passivepopup "Now Playing: '. $tmpSing . ' - ' . $tmpSong . '"';
+      system $cmd;
+    }
+
 
   }
 
